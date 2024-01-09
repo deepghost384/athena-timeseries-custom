@@ -3,7 +3,7 @@
 ## Install
 
 ```
-pip install git+https://github.com/yoshiso/athena-timeseries.git -U 
+pip install git+https://github.com/deepghost384/athena-timeseries-custom.git -U 
 ```
 
 ## Useage
@@ -46,7 +46,7 @@ Here is the example to query data. You can enjoy time series resampling operatio
 
 ```py
 # Query for raw data.
-raw_clsoe = tsdb.query(
+raw_close = tsdb.query(
     table_name='example_table',
     field='close',
     start_dt='2022-02-01 00:00:00', # yyyy-mm-dd HH:MM:SS, inclusive
@@ -55,7 +55,7 @@ raw_clsoe = tsdb.query(
 )
 
 # Query for raw data with resampling
-resampeld_daily_close = tsdb.resample_query(
+resampeled_daily_close = tsdb.resample_query(
     table_name='example_table',
     field='close',
     start_dt='2022-01-01 00:00:00', # yyyy-mm-dd HH:MM:SS, inclusive
