@@ -224,7 +224,9 @@ def _fast_read_sql_query(
         output_path = tempdir + "/temp.csv"
 
         awswrangler.s3.download(
-            execution_result["ResultConfiguration"]["OutputLocation"], output_path
+            execution_result["ResultConfiguration"]["OutputLocation"], 
+            output_path,
+            boto3_session=boto3_session,
         )
 
         df = pd.read_csv(output_path, dtype={"dt": str, "symbol": str, "value": dtype})
