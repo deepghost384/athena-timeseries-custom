@@ -24,6 +24,7 @@ class AthenaTimeSeries:
         symbols: Optional[List[str]] = None,
         start_dt: Optional[str] = None,
         end_dt: Optional[str] = None,
+        max_cache_expires: Optional[int] = None,
     ) -> pd.DataFrame:
         return query(
             boto3_session=self.boto3_session,
@@ -33,6 +34,7 @@ class AthenaTimeSeries:
             symbols=symbols,
             start_dt=start_dt,
             end_dt=end_dt,
+            max_cache_expires=max_cache_expires,
         )
 
     def resample_query(
