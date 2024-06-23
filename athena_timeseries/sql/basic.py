@@ -1,3 +1,6 @@
+from typing import Optional, List, Union
+from typing import Optional, List
+import awswrangler as wr
 from typing import Optional, List, Callable
 import pandas as pd
 from datetime import datetime
@@ -63,11 +66,12 @@ def to_where(
     return where
 
 
+
 def query(
     boto3_session,
     glue_db_name: str,
     table_name: str,
-    field: str,
+    fields: List[str],
     symbols: Optional[List[str]] = None,
     start_dt: Optional[str] = None,
     end_dt: Optional[str] = None,
@@ -90,37 +94,36 @@ def query(
 
     if symbols is not None and len(symbols) > 0:
         predicated = "'" + "','".join(symbols) + "'"
-
         where += [f"symbol in ({predicated})"]
 
+    if fields == ['*']:
+        fields_str = "*"
+    else:
+        fields_str = ", ".join(fields)
+
     stmt = f"""
-SELECT 
-    {field}, 
-    symbol, 
-    dt
-FROM
-    {table_name}
-        """
+    SELECT dt, {fields_str}, symbol
+    FROM {table_name}
+    """
 
     if len(where) > 0:
         condition = " AND ".join(where)
-        stmt += f"WHERE {condition}"
-        
-    if max_cache_expires is not None:
-        athena_cache_settings = {
-            "max_cache_seconds": max_cache_expires,
-        }
-    else:
-        athena_cache_settings = None
+        stmt += f" WHERE {condition}"
 
-    df = awswrangler.athena.read_sql_query(
-        stmt,
+    df = wr.athena.read_sql_query(
+        sql=stmt,
         database=glue_db_name,
         boto3_session=boto3_session,
         ctas_approach=ctas_approach,
-        athena_cache_settings=athena_cache_settings,
     )
 
     df["dt"] = pd.to_datetime(df["dt"])
 
-    return df.set_index(["dt", "symbol"])[field].unstack().sort_index()
+    if fields == ['*']:
+        df.set_index("dt", inplace=True)
+        df = df.drop(columns=["dt.1", "symbol.1", "partition_dt"], errors="ignore")
+    else:
+        df.set_index("dt", inplace=True)
+        df = df[["symbol"] + fields]
+
+    return df.sort_index()

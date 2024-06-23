@@ -16,12 +16,18 @@ import pandas as pd
 import numpy as np
 import boto3
 
-boto3_session = boto3.Session(region_name="ap-northeast-1")
+# AWSセッションを設定
+boto3_session = boto3.Session(
+    region_name=REGION_NAME,
+    aws_access_key_id=AWS_ACCESS_KEY_ID,
+    aws_secret_access_key=AWS_SECRET_ACCESS_KEY
+)
 
+# AthenaTimeSeriesオブジェクトを作成
 tsdb = athena_timeseries.AthenaTimeSeries(
-    boto3_session=boto3_session, 
-    glue_db_name='example_db', 
-    s3_path='s3://example_bucket/example_db_dir',
+    boto3_session=boto3_session,
+    glue_db_name=GLUE_DB_NAME,
+    s3_path=S3_PATH
 )
 
 # Prepare example data, your data need to have 3 columns named symbol, dt, partition_dt
@@ -45,24 +51,34 @@ tsdb.upload(table_name='example_table', df=df)
 Here is the example to query data. You can enjoy time series resampling operations!
 
 ```py
-# Query for raw data.
-raw_close = tsdb.query(
+# Query for raw data from 'example_table' for 'BTCUSDT' and 'ETHUSDT' symbols, retrieving 'open', 'high', 'low', 'close' fields
+raw_close_open = tsdb.query(
     table_name='example_table',
-    field='close',
+    fields=['open','high','low','close'],
     start_dt='2022-02-01 00:00:00', # yyyy-mm-dd HH:MM:SS, inclusive
     end_dt='2022-02-05 23:59:59', # yyyy-mm-dd HH:MM:SS, inclusive
-    symbols=['BTCUSDT'],
+    symbols=['BTCUSDT','ETHUSDT'],
 )
 
-# Query for raw data with resampling
+# Query for raw data from 'example_table' for 'BTCUSDT' and 'ETHUSDT' symbols, retrieving all fields
+# Only tsdb.query supports fields=['*']
+raw_close_open = tsdb.query(
+    table_name='example_table',
+    fields=['*'],
+    start_dt='2022-02-01 00:00:00', # yyyy-mm-dd HH:MM:SS, inclusive
+    end_dt='2022-02-05 23:59:59', # yyyy-mm-dd HH:MM:SS, inclusive
+    symbols=['BTCUSDT','ETHUSDT'],
+)
+
+# Query for resampled data from 'example_table' for 'BTCUSDT' and 'ETHUSDT' symbols, retrieving 'open', 'high', 'low', 'close' fields on a daily interval
 resampeled_daily_close = tsdb.resample_query(
     table_name='example_table',
-    field='close',
+    fields=['open','high','low','close'],
     start_dt='2022-01-01 00:00:00', # yyyy-mm-dd HH:MM:SS, inclusive
     end_dt='2022-01-31 23:59:59', # yyyy-mm-dd HH:MM:SS, inclusive
-    symbols=['BTCUSDT'],
+    symbols=['BTCUSDT','ETHUSDT'],
     interval='day', # month | week | day | hour | {1,2,3,4,6,8,12}hour | minute | {5,15,30}minute
-    op='last', # last | first | min | max | sum
+    ops=['first','max','min','last'], # last | first | min | max | sum
 )
 ```
 

@@ -108,23 +108,22 @@ def resample_query(
     boto3_session,
     glue_db_name: str,
     table_name: str,
-    field: str,
+    fields: List[str],
     symbols: Optional[List[str]] = None,
     start_dt: Optional[str] = None,
     end_dt: Optional[str] = None,
     interval: str = "day",
     tz: Optional[str] = None,
-    op: str = "last",
+    ops: List[str],
     where: Optional[Expr] = None,
     cast: Optional[str] = None,
     verbose: int = 0,
     fast: bool = True,
     offset_repr: Optional[str] = None,
-):
-
+) -> pd.DataFrame:
     inner_stmt = _build_inner_view(
         table_name=table_name,
-        field=field,
+        field=fields[0],  # Just to use _build_inner_view function
         symbols=symbols,
         start_dt=start_dt,
         end_dt=end_dt,
@@ -134,22 +133,28 @@ def resample_query(
         offset_repr=offset_repr,
     )
 
-    field_name = "value"
-    if cast is not None:
-        field_name = f"cast(value as {cast})"
+    select_statements = []
+    for field, op in zip(fields, ops):
+        field_name = "value"
+        if cast is not None:
+            field_name = f"cast(value as {cast})"
 
-    operator = {
-        "last": "max_by({field_name}, timestamp)",
-        "first": "min_by({field_name}, timestamp)",
-        "max": "max({field_name})",
-        "min": "min({field_name})",
-        "sum": "sum({field_name})",
-    }[op].format(field_name=field_name)
+        operator = {
+            "last": "max_by({field_name}, timestamp)",
+            "first": "min_by({field_name}, timestamp)",
+            "max": "max({field_name})",
+            "min": "min({field_name})",
+            "sum": "sum({field_name})",
+        }[op].format(field_name=field_name)
+
+        select_statements.append(f"{operator} AS {field}")
+
+    select_str = ", ".join(select_statements)
 
     stmt = f"""
 select
     dt,
-    {operator} AS value,
+    {select_str},
     symbol
 from
     ({inner_stmt}) as t
@@ -173,24 +178,81 @@ order by dt
         ctas_approach=False,
     )
 
-    df = df.set_index(["dt", "symbol"])["value"].unstack()
+    df["dt"] = pd.to_datetime(df["dt"])
 
-    df.index = pd.to_datetime(
-        df.index,
-        format="%Y-%m-%d %H:%M:%S.%f %Z",
-        cache=True,
-        infer_datetime_format=True,
-    )
+    return df.set_index("dt")[["symbol"] + fields].sort_index()
+# def resample_query(
+#     *,
+#     boto3_session,
+#     glue_db_name: str,
+#     table_name: str,
+#     field: str,
+#     symbols: Optional[List[str]] = None,
+#     start_dt: Optional[str] = None,
+#     end_dt: Optional[str] = None,
+#     interval: str = "day",
+#     tz: Optional[str] = None,
+#     op: str = "last",
+#     where: Optional[Expr] = None,
+#     cast: Optional[str] = None,
+#     verbose: int = 0,
+#     fast: bool = True,
+#     offset_repr: Optional[str] = None,
+# ) -> pd.DataFrame:
+#     inner_stmt = _build_inner_view(
+#         table_name=table_name,
+#         field=field,
+#         symbols=symbols,
+#         start_dt=start_dt,
+#         end_dt=end_dt,
+#         interval=interval,
+#         tz=tz,
+#         where=where,
+#         offset_repr=offset_repr,
+#     )
 
-    if tz is not None:
-        if df.index.tz is None:
-            df = df.tz_localize(tz)
-        else:
-            df = df.tz_convert(tz)
+#     field_name = "value"
+#     if cast is not None:
+#         field_name = f"cast(value as {cast})"
 
-    df.index.name = "dt"
+#     operator = {
+#         "last": "max_by({field_name}, timestamp)",
+#         "first": "min_by({field_name}, timestamp)",
+#         "max": "max({field_name})",
+#         "min": "min({field_name})",
+#         "sum": "sum({field_name})",
+#     }[op].format(field_name=field_name)
 
-    return df.sort_index()
+#     stmt = f"""
+# select
+#     dt,
+#     {operator} AS {field},
+#     symbol
+# from
+#     ({inner_stmt}) as t
+# group by dt, symbol
+# order by dt
+#     """
+
+#     if verbose > 0:
+#         print(stmt)
+
+#     if fast:
+#         execute_fn = _fast_read_sql_query
+#     else:
+#         execute_fn = awswrangler.athena.read_sql_query
+
+#     df = execute_fn(
+#         sql=stmt,
+#         database=glue_db_name,
+#         boto3_session=boto3_session,
+#         max_cache_query_inspections=60 * 10,
+#         ctas_approach=False,
+#     )
+
+#     df["dt"] = pd.to_datetime(df["dt"])
+
+#     return df.set_index("dt")[["symbol", field]].sort_index()
 
 
 def _fast_read_sql_query(
