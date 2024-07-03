@@ -14,7 +14,7 @@ setup(
     keywords="",
     packages=find_packages(exclude=("tests")),
     python_requires=">=3.7",
-    install_requires=["pandas", "numpy", "awswrangler"],
+    install_requires=["pandas", "numpy", "awswrangler","rich"],
     tests_require=[],
     classifiers=[
         "License :: OSI Approved :: MIT License",
