@@ -1,4 +1,4 @@
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Literal
 import pandas as pd
 
 from .sql.resample import resample_query, Expr
@@ -38,40 +38,6 @@ class AthenaTimeSeries:
             max_cache_expires=max_cache_expires,
         )
 
-    # def resample_query(
-    #     self,
-    #     *,
-    #     table_name: str,
-    #     field: str,
-    #     symbols: Optional[List[str]] = None,
-    #     start_dt: Optional[str] = None,
-    #     end_dt: Optional[str] = None,
-    #     interval: str = "day",
-    #     tz: Optional[str] = None,
-    #     op: str = "last",
-    #     where: Optional[Expr] = None,
-    #     cast: Optional[str] = None,
-    #     verbose: int = 0,
-    #     fast: bool = True,
-    #     offset_repr: Optional[str] = None,
-    # ) -> pd.DataFrame:
-    #     return resample_query(
-    #         boto3_session=self.boto3_session,
-    #         glue_db_name=self.glue_db_name,
-    #         table_name=table_name,
-    #         field=field,
-    #         symbols=symbols,
-    #         start_dt=start_dt,
-    #         end_dt=end_dt,
-    #         interval=interval,
-    #         tz=tz,
-    #         op=op,
-    #         where=where,
-    #         cast=cast,
-    #         verbose=verbose,
-    #         fast=fast,
-    #         offset_repr=offset_repr,
-    #     )
     def resample_query(self, table_name, fields, start_dt=None, end_dt=None, symbols=None, interval='day', tz=None, ops=None, where=None, cast=None, verbose=0, fast=True, offset_repr=None):
         return sql_resample_query(
             boto3_session=self.boto3_session,
@@ -90,12 +56,14 @@ class AthenaTimeSeries:
             fast=fast,
             offset_repr=offset_repr
         )
+
     def upload(
         self,
         *,
         table_name: str,
         df: pd.DataFrame,
         dtype: Optional[Dict[str, str]] = None,
+        mode: Literal['append', 'overwrite', 'overwrite_partitions'] = 'overwrite_partitions'
     ):
         return upload(
             boto3_session=self.boto3_session,
@@ -104,4 +72,5 @@ class AthenaTimeSeries:
             table_name=table_name,
             df=df,
             dtype=dtype,
+            mode=mode,
         )
